@@ -170,8 +170,8 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
 .add-bar{display:flex;gap:0;padding:8px 0;margin-top:4px;border-top:1px dashed var(--border)}
 .add-btn{background:none;border:none;color:var(--text4);font-size:12px;font-weight:500;padding:7px 14px;border-radius:var(--r-sm);display:flex;align-items:center;gap:6px;cursor:pointer;transition:all .15s}
 .add-btn:hover{color:var(--teal);background:var(--teal3)}
-.add-col-btn{background:none;border:1px dashed var(--border2);color:var(--text4);font-size:13px;padding:3px 6px;border-radius:var(--r-sm);cursor:pointer;display:flex;align-items:center;transition:all .15s;white-space:nowrap}
-.add-col-btn:hover{border-color:var(--teal);color:var(--teal);background:var(--teal3)}
+.add-col-btn{background:none;border:1px dashed #b8860b;color:#f5a623;font-size:13px;padding:3px 6px;border-radius:var(--r-sm);cursor:pointer;display:flex;align-items:center;transition:all .15s;white-space:nowrap}
+.add-col-btn:hover{border-color:#f5a623;color:#fff;background:#f5a623}
 .custom-col-th{position:relative;min-width:100px}
 .custom-col-th input{background:none;border:none;outline:none;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text4);width:calc(100% - 18px);font-family:var(--font);cursor:pointer;padding:0}
 .custom-col-th input:focus{color:var(--teal)}
@@ -231,6 +231,7 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
       <span id="cdTimer" style="font-weight:700;letter-spacing:.02em;margin-left:4px"></span>
     </div>
     <button class="btn-icon" onclick="toggleDark()" title="Dark mode"><i class="ti ti-moon"></i></button>
+    <button class="btn-sm" id="btnBack" style="display:none" onclick="goUpload()"><i class="ti ti-arrow-left"></i> Back</button>
     <button class="btn-sm" onclick="goUpload()"><i class="ti ti-upload"></i> Import</button>
     <button class="btn-sm" id="btnExport" style="display:none" onclick="exportTxt()"><i class="ti ti-download"></i> Export</button>
     <button class="btn-teal" id="btnShare" style="display:none" onclick="copyLink()"><i class="ti ti-share"></i> Share</button>
@@ -546,6 +547,7 @@ function goUpload(){
   document.getElementById('cmdBar').className='cmd-bar';
   document.getElementById('btnExport').style.display='none';
   document.getElementById('btnShare').style.display='none';
+  document.getElementById('btnBack').style.display='none';
   document.getElementById('cdChip').style.display='none';
   rosId='';
   customCols=[];
@@ -560,6 +562,7 @@ function showEditor(id, title){
   document.getElementById('editorPage').style.display='block';
   document.getElementById('btnExport').style.display='';
   document.getElementById('btnShare').style.display='';
+  document.getElementById('btnBack').style.display='';
   document.getElementById('cmdBar').className='cmd-bar visible';
   document.getElementById('cdChip').style.display='';
   clearInterval(tickTimer); clearInterval(pollTimer); clearInterval(presTimer);
