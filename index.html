@@ -388,7 +388,7 @@ function xlTime(v){
 
 // ── STORAGE ──
 // ── FIREBASE CONFIG ──
-const FB = 'https://cue-app-ac256-default-rtdb.firebaseio.com';
+const FB = 'https://cue-app-33450-default-rtdb.firebaseio.com';
 const myId = 'u_' + Math.random().toString(36).slice(2,8);
 
 async function fbGet(p){ try{ const r=await fetch(p+'.json'); return r.ok?r.json():null; }catch{ return null; } }
@@ -737,24 +737,54 @@ function renderTable(){
     inp.addEventListener('change',e=>{
       const i=parseInt(e.target.dataset.i), f=e.target.dataset.f, r=rows[i];
       if(!r) return;
-      r[f]=e.target.value;
-      if(f==='time'){ r.time=xlTime(e.target.value); e.target.value=r.time; cascade(i); refreshTimes(); }
-      if(f==='dur'){ r.durMins=parseDur(e.target.value); cascade(i); refreshTimes(); }
+      if(f==='time'){
+        const oldMins = toMins(r.time);
+        const newRaw = e.target.value.trim();
+        if(newRaw===''){
+          r.time='';
+        } else {
+          r.time=xlTime(newRaw);
+          e.target.value=r.time;
+          const newMins = toMins(r.time);
+          if(oldMins!==null && newMins!==null){
+            const offset = newMins - oldMins;
+            // shift all rows below by the same offset
+            for(let j=i+1;j<rows.length;j++){
+              const rj=rows[j]; if(rj.type!=='data') continue;
+              const t=toMins(rj.time);
+              if(t!==null) rj.time=fromMins(t+offset);
+            }
+          } else if(oldMins===null && newMins!==null){
+            // row had no time before — just cascade forward from here
+            cascade(i);
+          }
+        }
+        refreshTimes();
+      } else {
+        r[f]=e.target.value;
+        if(f==='dur'){ r.durMins=parseDur(e.target.value); cascade(i); refreshTimes(); }
+      }
       updateKPI(); save();
     });
   });
 }
 
 function cascade(from){
+  // Used when a row gains a time for the first time or duration changes.
+  // Fills in times for rows below that have no time yet.
   let cur=null;
-  for(let i=0;i<=from;i++){ const r=rows[i]; if(r.type!=='data')continue; const t=toMins(r.time); if(t!==null)cur=t+(r.durMins||0); }
+  for(let i=0;i<=from;i++){
+    const r=rows[i]; if(r.type!=='data') continue;
+    const t=toMins(r.time); if(t!==null) cur=t+(r.durMins||0);
+  }
   if(cur===null) return;
   for(let i=from+1;i<rows.length;i++){
-    const r=rows[i]; if(r.type!=='data')continue;
-    const ex=toMins(r.time); if(ex!==null&&ex>cur-1)break;
-    r.time=fromMins(cur); if(r.durMins)cur+=r.durMins;
+    const r=rows[i]; if(r.type!=='data') continue;
+    if(!r.time){ r.time=fromMins(cur); }
+    const t=toMins(r.time); if(t!==null) cur=t+(r.durMins||0);
   }
 }
+
 function refreshTimes(){
   document.querySelectorAll('input[data-f="time"]').forEach(inp=>{
     const r=rows[parseInt(inp.dataset.i)]; if(r&&r.time&&inp.value!==r.time)inp.value=r.time;
@@ -848,7 +878,7 @@ function buildFromMap(){
     if(!whatV && !timeV) return;
     const rawDur=cell(row,'dur');
     const cleanTime=xlTime(timeV);
-    built.push({type:'data',id:uid(),cue:cueV||String(ctr++),time:cleanTime,dur:rawDur,durMins:parseDur(rawDur),what:whatV,screens:cell(row,'screens'),audio:cell(row,'audio'),mics:cell(row,'mics'),notes:cell(row,'notes'),status:''});
+    built.push({type:'data',id:uid(),cue:cueV||String(ctr++),time:cleanTime,dur:rawDur,durMins:parseDur(rawDur),what:whatV,screens:cell(row,'screens'),audio:cell(row,'audio'),mics:cell(row,'mics'),notes:cell(row,'notes'),status:'',timeLocked:!!cleanTime});
   });
 
   if(!built.length){ alert('No rows imported. Check column mapping.'); return; }
