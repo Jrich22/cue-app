@@ -310,6 +310,21 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
   <span class="cmd-timer" id="cmdTimer"></span>
 </div>
 
+<!-- SHARE MODAL -->
+<div class="modal-bg" id="shareModal">
+  <div class="modal" style="max-width:480px">
+    <h2>Share this run-of-show</h2>
+    <div class="modal-sub">Anyone with this link can view and edit this event in real time.</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="shareLinkInput" readonly style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg2);color:var(--text);outline:none;font-family:var(--font)"/>
+      <button id="shareCopyBtn" class="btn-teal" onclick="copyShareLink()">Copy link</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-mc" onclick="closeShareModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- MAP MODAL -->
 <div class="modal-bg" id="mapModal">
   <div class="modal">
@@ -484,10 +499,21 @@ function save(){ setSave('saving'); clearTimeout(saveTimer); saveTimer=setTimeou
 // ── LINK ──
 function copyLink(){
   if(!rosId) return;
-  const url=location.origin+location.pathname+'#'+rosId;
-  navigator.clipboard.writeText(url).catch(()=>{});
-  const f=document.getElementById('copyFlash'); f.className='flash on'; setTimeout(()=>f.className='flash',2000);
+  // Save first to make sure data is in Firebase before sharing
+  saveLocal().then(()=>{
+    const url=location.origin+location.pathname+'#'+rosId;
+    document.getElementById('shareLinkInput').value=url;
+    document.getElementById('shareModal').className='modal-bg on';
+  });
 }
+function copyShareLink(){
+  const input=document.getElementById('shareLinkInput');
+  input.select(); input.setSelectionRange(0,99999);
+  navigator.clipboard.writeText(input.value).catch(()=>{ document.execCommand('copy'); });
+  document.getElementById('shareCopyBtn').textContent='Copied!';
+  setTimeout(()=>document.getElementById('shareCopyBtn').textContent='Copy link',2000);
+}
+function closeShareModal(){ document.getElementById('shareModal').className='modal-bg'; }
 function exportJSON(){
   if(!rows.length) return;
   const payload=JSON.stringify({rows,title:evTitle,savedAt:Date.now()},null,2);
