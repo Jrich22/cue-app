@@ -170,6 +170,14 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
 .add-bar{display:flex;gap:0;padding:8px 0;margin-top:4px;border-top:1px dashed var(--border)}
 .add-btn{background:none;border:none;color:var(--text4);font-size:12px;font-weight:500;padding:7px 14px;border-radius:var(--r-sm);display:flex;align-items:center;gap:6px;cursor:pointer;transition:all .15s}
 .add-btn:hover{color:var(--teal);background:var(--teal3)}
+.add-col-btn{background:none;border:1px dashed var(--border2);color:var(--text4);font-size:13px;padding:3px 6px;border-radius:var(--r-sm);cursor:pointer;display:flex;align-items:center;transition:all .15s;white-space:nowrap}
+.add-col-btn:hover{border-color:var(--teal);color:var(--teal);background:var(--teal3)}
+.custom-col-th{position:relative;min-width:100px}
+.custom-col-th input{background:none;border:none;outline:none;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text4);width:calc(100% - 18px);font-family:var(--font);cursor:pointer;padding:0}
+.custom-col-th input:focus{color:var(--teal)}
+.del-col-btn{background:none;border:none;color:var(--text4);font-size:11px;cursor:pointer;padding:0;position:absolute;right:4px;top:50%;transform:translateY(-50%);opacity:0;transition:opacity .15s}
+.custom-col-th:hover .del-col-btn{opacity:1}
+.del-col-btn:hover{color:var(--live)}
 
 /* CMD BAR */
 .cmd-bar{position:fixed;bottom:0;left:0;right:0;background:var(--navy);color:#fff;height:52px;display:none;align-items:center;padding:0 24px;gap:16px;z-index:150;box-shadow:0 -4px 12px rgba(0,0,0,.15)}
@@ -277,7 +285,7 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
   </div>
   <div class="ros-wrap">
     <table class="ros">
-      <thead><tr>
+      <thead><tr id="theadRow">
         <th style="width:22px"></th>
         <th style="width:82px">Status</th>
         <th style="width:52px">Cue</th>
@@ -288,6 +296,8 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
         <th style="width:110px">Audio</th>
         <th style="width:100px">Mics</th>
         <th style="width:130px">Notes</th>
+        <th id="customColHeaders"></th>
+        <th style="width:32px;padding:0 4px"><button class="add-col-btn" onclick="promptAddColumn()" title="Add column"><i class="ti ti-column-insert-right"></i></button></th>
         <th style="width:32px"></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
@@ -341,6 +351,7 @@ td.del-td{text-align:center;padding:0 4px;width:32px}
 <script>
 // ── STATE ──
 let rows = [];
+let customCols = []; // [{id, label}]
 let rosId = '';
 let myName = 'Show Caller';
 let lastJson = '';
@@ -415,7 +426,7 @@ function rosPath(id){ return `${FB}/cue/${id||rosId}`; }
 // ── SAVE / LOAD ──
 async function saveLocal(){
   if(!rosId) return;
-  const payload={rows,title:evTitle,savedAt:Date.now(),savedBy:myName};
+  const payload={rows,customCols,title:evTitle,savedAt:Date.now(),savedBy:myName};
   await fbPut(rosPath()+'/data', payload);
   lastJson=JSON.stringify(rows);
   addToIndex(rosId, evTitle, Date.now());
@@ -537,6 +548,7 @@ function goUpload(){
   document.getElementById('btnShare').style.display='none';
   document.getElementById('cdChip').style.display='none';
   rosId='';
+  customCols=[];
   renderSidebar();
 }
 
@@ -554,6 +566,7 @@ function showEditor(id, title){
   tickTimer=setInterval(tick,1000);
   pollTimer=setInterval(doPoll,4000);
   presTimer=setInterval(doPresence,15000);
+  renderCustomColHeaders();
   tick(); doPresence();
 }
 
@@ -684,6 +697,46 @@ function updateKPI(){
 }
 
 // ── RENDER ──
+// ── CUSTOM COLUMNS ──
+function promptAddColumn(){
+  const label = prompt('Column name:','');
+  if(!label || !label.trim()) return;
+  const id = 'custom_' + uid();
+  customCols.push({id, label: label.trim()});
+  renderCustomColHeaders();
+  renderTable();
+  save();
+}
+
+function renderCustomColHeaders(){
+  const container = document.getElementById('customColHeaders');
+  if(!container) return;
+  container.innerHTML = '';
+  container.colSpan = customCols.length || 0;
+  customCols.forEach((col, ci)=>{
+    const th = document.createElement('th');
+    th.className = 'custom-col-th';
+    th.style.minWidth = '120px';
+    th.innerHTML = `<input value="${esc(col.label)}" title="Click to rename" data-ci="${ci}"/><button class="del-col-btn" onclick="deleteColumn(${ci})" title="Remove column"><i class="ti ti-x"></i></button>`;
+    th.querySelector('input').addEventListener('change', e=>{
+      customCols[ci].label = e.target.value.trim()||customCols[ci].label;
+      save();
+    });
+    container.parentElement.insertBefore(th, container);
+  });
+  container.style.display = 'none';
+}
+
+function deleteColumn(ci){
+  if(!confirm('Remove this column and all its data?')) return;
+  const id = customCols[ci].id;
+  customCols.splice(ci, 1);
+  rows.forEach(r=>{ if(r.type==='data') delete r[id]; });
+  renderCustomColHeaders();
+  renderTable();
+  save();
+}
+
 async function renderSidebar(){
   const container = document.getElementById('upProjects');
   if(!container) return;
@@ -708,8 +761,10 @@ async function openSaved(id){
   const d = await loadLocal(id);
   if(!d||!d.rows){ alert('Could not load this event.'); return; }
   rows = d.rows;
+  customCols = d.customCols || [];
   lastJson = JSON.stringify(rows);
   showEditor(id, d.title||'Run-of-Show');
+  renderCustomColHeaders();
   renderTable();
   updateKPI();
 }
@@ -731,7 +786,7 @@ function renderTable(){
     const tr=document.createElement('tr');
     if(row.type==='section'){
       tr.className='sec-row';
-      tr.innerHTML=`<td style="width:22px;background:var(--navy)"></td><td colspan="9" style="padding:0;background:var(--navy)"><input class="sec-inp" value="${esc(row.label||'')}" placeholder="Section header…" data-i="${i}" data-f="label"/></td><td style="background:var(--navy);text-align:center;padding:0 4px"><button class="sec-del" onclick="delRow(${i})"><i class="ti ti-trash"></i></button></td>`;
+      tr.innerHTML=`<td style="width:22px;background:var(--navy)"></td><td colspan="${9 + customCols.length}" style="padding:0;background:var(--navy)"><input class="sec-inp" value="${esc(row.label||'')}" placeholder="Section header…" data-i="${i}" data-f="label"/></td><td style="background:var(--navy);text-align:center;padding:0 4px"><button class="sec-del" onclick="delRow(${i})"><i class="ti ti-trash"></i></button></td>`;
     } else {
       const s=row.status||'';
       tr.className='data-row'+(s==='live'?' is-live':s==='next'?' is-next':s==='done'?' is-done':'');
@@ -743,6 +798,9 @@ function renderTable(){
       tr.addEventListener('drop',e=>{ e.preventDefault(); tr.classList.remove('drag-over'); if(dragSrc===null||dragSrc===i)return; const mv=rows.splice(dragSrc,1)[0]; rows.splice(i,0,mv); dragSrc=null; renderTable(); updateKPI(); save(); });
       const chipCls=s==='live'?'chip chip-live':s==='next'?'chip chip-next':s==='done'?'chip chip-done':'chip chip-none';
       const chipLbl=s==='live'?'LIVE':s==='next'?'NEXT':s==='done'?'DONE':'—';
+      const customCells = customCols.map(col=>
+        `<td><input class="ci" value="${esc(row[col.id]||'')}" placeholder="${esc(col.label)}…" data-i="${i}" data-f="${col.id}"/></td>`
+      ).join('');
       tr.innerHTML=`
         <td class="grip-td"><i class="ti ti-grip-vertical"></i></td>
         <td class="status-td"><button class="${chipCls}" onclick="cycleStatus(${i})"><span class="chip-dot"></span>${chipLbl}</button></td>
@@ -754,6 +812,7 @@ function renderTable(){
         <td><input class="ci" value="${esc(row.audio||'')}" placeholder="Audio…" data-i="${i}" data-f="audio"/></td>
         <td><input class="ci" value="${esc(row.mics||'')}" placeholder="Mics…" data-i="${i}" data-f="mics"/></td>
         <td><input class="ci" value="${esc(row.notes||'')}" placeholder="Notes…" data-i="${i}" data-f="notes"/></td>
+        ${customCells}
         <td class="del-td"><button class="del-btn" onclick="delRow(${i})"><i class="ti ti-trash"></i></button></td>`;
     }
     tbody.appendChild(tr);
@@ -943,9 +1002,11 @@ renderSidebar();
       const d = await fbGet(`${FB}/cue/${hash}/data`);
       if(d && d.rows && d.rows.length){
         rows = d.rows;
+        customCols = d.customCols || [];
         lastJson = JSON.stringify(rows);
         addToIndex(hash, d.title||'Run-of-Show', d.savedAt||Date.now());
         showEditor(hash, d.title||'Run-of-Show');
+        renderCustomColHeaders();
         renderTable();
         updateKPI();
       }
